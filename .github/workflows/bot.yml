@@ -1,0 +1,51 @@
+name: Aanya Companion Bot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: aanya-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MEMORY_KEY: ${{ secrets.MEMORY_KEY }}
+          OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
+          GROQ_MODEL: llama-3.1-8b-instant
+          BOT_NAME: Aanya
+          BOT_TZ: Asia/Kolkata
+          RUN_SECONDS: "280"
+        run: python bot.py
+
+      - name: Commit memory
+        if: always()
+        run: |
+          git config user.name "aanya-bot"
+          git config user.email "aanya-bot@users.noreply.github.com"
+          git add memory.enc || true
+          if ! git diff --cached --quiet; then
+            git commit -m "memory update"
+            git push
+          fi
